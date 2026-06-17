@@ -1,0 +1,625 @@
+\documentclass[12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{geometry}
+\geometry{a4paper, margin=1in}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{hyperref}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{enumitem}
+
+% Set up code listings
+\lstset{
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    commentstyle=\color{gray},
+    keywordstyle=\color{blue},
+    stringstyle=\color{green!60!black},
+    frame=single,
+    backgroundcolor=\color{gray!5},
+    numbers=left,
+    numberstyle=\tiny\color{gray}
+}
+
+% PDF metadata
+\hypersetup{
+    pdfauthor={Bayram Bayramov},
+    pdftitle={AI-ENG-201: Homework 3 Report},
+    pdfsubject={Data Cleaning, Feature Engineering, and Data Visualization}
+}
+
+\title{
+    \vspace{-2cm}
+    \textbf{AI-ENG-201 – Machine Learning}\\
+    \textbf{Homework 3}\\
+    \vspace{0.5cm}
+    \large{Data Cleaning, Feature Engineering, and Data Visualization}
+    \newline
+}
+
+\author{\textbf{Bayram Bayramov}}
+\date{17.06.2026}
+
+\begin{document}
+
+\maketitle
+\thispagestyle{empty}
+
+\begin{center}
+    \vspace{1cm}
+    \large{\textbf{
+    \text{National Artificial Intelligence Center}
+    }}
+\end{center}
+
+\begin{center}
+    \vspace{1cm}
+    \large{\textbf{Honor Pledge}}
+\end{center}
+
+\noindent
+I, Bayram Bayramov, affirm that the work in this submission is my own. I have not shared or received code, plots, or written analysis for this assignment. Where I used AI assistants, I did so only as permitted by the AI/LLM policy. I can explain every line of code and every paragraph of writing in my submission.
+\newline
+\newline
+Signed: Bayram Bayramov   \qquad \quad Date: 17.062026
+
+\vspace{0.5cm}
+\hrule
+\vspace{0.5cm}
+% \textbf{Date:} 15.06.2026
+
+\newpage
+
+\tableofcontents
+\newpage
+
+% ============================================================
+% PART 1: DATA CLEANING
+% ============================================================
+
+\section{Data Cleaning}
+
+\subsection{Missing-value analysis}
+
+\subsubsection*{Missing Values Summary}
+
+The Titanic dataset contains 891 rows with missing values in several columns:
+
+\begin{table}[H]
+\centering
+\caption{Missing Values Analysis}
+\begin{tabular}{l r r}
+\toprule
+\textbf{Column} & \textbf{Missing Count} & \textbf{Missing Percent} \\
+\midrule
+deck & 688 & 77.22\% \\
+age & 177 & 19.87\% \\
+embarked & 2 & 0.22\% \\
+embark\_town & 2 & 0.22\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\textwidth]{missingness_heatmap.png}
+\caption{Missingness Heatmap - Titanic Dataset}
+\label{fig:missingness}
+\end{figure}
+
+\subsubsection*{Missingness Mechanism Analysis}
+
+\textbf{age column:}
+\newline
+\textbf{MCAR (Missing Completely At Random)} - Little's MCAR test indicates age missingness is independent of embarked missingness (p = 1.0000). However, there is a notable exception: age missingness is related to survival (p = 0.0077). This suggests children (who had higher survival rates) were more likely to have their age documented. This creates a relationship between age missingness and survival.
+
+\textbf{embarked column:}
+\newline
+\textbf{MCAR (Missing Completely At Random)} — Only 2 values are missing out of 891 (0.22\%). There is no statistical evidence of any systematic pattern with survival (p = 0.2864) or age missingness (p = 1.0000). The missingness appears to be coincidental data entry errors.
+
+\subsection{Imputation from scratch}
+
+Two custom imputers were implemented from scratch:
+
+\begin{enumerate}
+    \item \textbf{SimpleImputer:} Mean/median imputation with vectorized broadcasting and fallback for entirely NaN columns.
+    \item \textbf{KNNImputer:} Optimized KNN imputer using NaN-aware Euclidean distance with KD-Tree optimization.
+\end{enumerate}
+
+\subsubsection*{Sanity Check Against sklearn}
+
+The custom SimpleImputer was compared against sklearn's implementation:
+
+\begin{lstlisting}[caption=SimpleImputer Sanity Check Output]
+Custom SimpleImputer result:
+[[1.         2.        ]
+ [2.66666667 3.        ]
+ [3.         4.        ]
+ [4.         5.        ]
+ [2.66666667 6.        ]]
+
+Sklearn SimpleImputer result:
+[[1.         2.        ]
+ [2.66666667 3.        ]
+ [3.         4.        ]
+ [4.         5.        ]
+ [2.66666667 6.        ]]
+
+Results match: True
+\end{lstlisting}
+
+\subsubsection*{Imputation Results}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{imputation_comparison_correct.png}
+\caption{Age Distribution: Original vs Imputed (Train and Test)}
+\label{fig:imputation}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\caption{Imputation Summary (Train vs Test)}
+\begin{tabular}{l c c c}
+\toprule
+\textbf{Set} & \textbf{Original} & \textbf{Median Imputed} & \textbf{KNN Imputed} \\
+\midrule
+\multicolumn{4}{c}{\textbf{Training Set}} \\
+Mean & 29.50 & 29.20 (diff: -0.30) & 28.86 (diff: -0.64) \\
+Std & 14.50 & 13.00 & 13.63 \\
+\midrule
+\multicolumn{4}{c}{\textbf{Test Set}} \\
+Mean & 30.51 & 29.99 (diff: -0.52) & 29.67 (diff: -0.84) \\
+Std & 14.66 & 13.05 & 13.54 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection*{Leakage Prevention}
+
+Both imputers compute statistics only on the training set during \texttt{fit()}, then apply those same statistics to transform test data. The KNNImputer only uses complete rows from the training set as reference, never accessing test row values during neighbor calculation.
+
+\subsection{Categorical encoding}
+
+\subsubsection*{One-Hot Encoding}
+
+The custom OneHotEncoder with \texttt{drop='first'} was applied:
+
+\begin{lstlisting}
+One-hot encoded sex shape: (891, 1)
+One-hot encoded embarked shape: (891, 2)
+
+First 5 rows of one-hot encoded sex column:
+[[1.]
+ [0.]
+ [0.]
+ [0.]
+ [1.]]
+\end{lstlisting}
+
+\subsubsection*{Target Encoding}
+
+CV-safe target encoding was demonstrated on the embarked column using survival as the target:
+
+\begin{lstlisting}
+First 10 target-encoded values:
+  embarked=S, encoded=0.337
+  embarked=C, encoded=0.560
+  embarked=S, encoded=0.330
+  ...
+\end{lstlisting}
+
+\subsubsection*{Leakage Explanation}
+
+Fitting a target encoder on the full dataset before splitting causes data leakage because the encoder uses test set target values to compute per-category means. The current implementation avoids this by computing per-category target means using only the training data passed to \texttt{fit()}, with internal cross-validation during \texttt{fit\_transform()}.
+
+\subsection{Impact of cleaning}
+
+\begin{table}[H]
+\centering
+\caption{Logistic Regression Performance: Raw vs Cleaned}
+\begin{tabular}{l c c c}
+\toprule
+\textbf{Dataset} & \textbf{Samples Used} & \textbf{Accuracy} & \textbf{F1 Score} \\
+\midrule
+Raw (dropped missing) & 570 train, 142 test & 0.8310 & 0.7818 \\
+Cleaned (imputed + encoded) & 712 train, 179 test & 0.8101 & 0.7639 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Discussion:}
+\newline
+The cleaned dataset did NOT improve performance — accuracy dropped from 0.8310 to 0.8101 (-2.09\%) and F1 from 0.7818 to 0.7639 (-1.79\%).
+
+\textbf{Why performance decreased:}
+\begin{enumerate}
+    \item \textbf{Imputation introduced noise:} Median imputation for age and mode imputation for embarked replaced missing values with central tendencies. While this retained more samples, the imputed values may not reflect the true underlying distribution.
+    \item \textbf{One-hot encoding increased dimensionality:} Label encoding (used in raw) maps sex to a single numeric column. One-hot encoding creates multiple binary columns, increasing feature space and potentially causing overfitting.
+    \item \textbf{Missing indicator may be redundant:} The binary indicator for missing age adds a feature that may not carry strong predictive signal.
+\end{enumerate}
+
+% ============================================================
+% PART 2: FEATURE ENGINEERING
+% ============================================================
+
+\section{Feature Engineering}
+
+\subsection{Feature scaling from scratch}
+
+\subsubsection*{Scaler Implementations}
+
+Three custom scalers were implemented:
+\begin{itemize}
+    \item \textbf{StandardScaler:} $(x - \mu) / \sigma$
+    \item \textbf{MinMaxScaler:} $(x - x_{min}) / (x_{max} - x_{min})$
+    \item \textbf{RobustScaler:} $(x - Q_2) / (Q_3 - Q_1)$
+\end{itemize}
+
+\subsubsection*{Statistical Validation}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{scaling_statistical_comparison.png}
+\caption{Box Plot and Violin Plot Comparison of Scaling Methods}
+\label{fig:scaling_box}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{scaling_qqplots.png}
+\caption{Q-Q Plots: Comparison to Normal Distribution}
+\label{fig:scaling_qq}
+\end{figure}
+
+\subsubsection*{Which Scaler is Least Affected by Heavy-Tailed Distribution?}
+
+\textbf{RobustScaler} is least affected by the heavy-tailed nature of MedInc because it uses median and IQR instead of mean and standard deviation. Extreme outliers pull the mean and inflate the standard deviation, but have minimal impact on the median and IQR.
+
+\begin{table}[H]
+\centering
+\caption{Robustness Metrics Comparison}
+\begin{tabular}{l c c c c}
+\toprule
+\textbf{Metric} & \textbf{Original} & \textbf{StandardScaler} & \textbf{MinMaxScaler} & \textbf{RobustScaler} \\
+\midrule
+Skewness & 1.6465 & 1.6465 & 1.6465 & 1.6465 \\
+Kurtosis & 4.951 & 4.951 & 4.951 & 4.951 \\
+IQR & 2.1798 & 1.1474 & 0.1503 & \textbf{1.0000} \\
+Median & 3.5348 & -0.1768 & 0.2093 & \textbf{0.0000} \\
+Mean-Median & 0.3359 & 0.1768 & 0.0232 & 0.1541 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Polynomial and interaction features}
+
+The custom \texttt{PolynomialFeatures} with \texttt{degree=2, include\_bias=True} was applied to MedInc and AveRooms:
+
+\begin{lstlisting}[caption=Polynomial Features Output]
+Original features shape: (100, 2)
+Polynomial features shape: (100, 6)
+
+Feature names (6 terms):
+  0: bias
+  1: MedInc
+  2: AveRooms
+  3: MedInc * MedInc
+  4: MedInc * AveRooms
+  5: AveRooms * AveRooms
+\end{lstlisting}
+
+For a sample point (MedInc=3.0, AveRooms=5.0):
+\begin{lstlisting}
+bias: 1.00
+MedInc: 3.00
+AveRooms: 5.00
+MedInc * MedInc: 9.00
+MedInc * AveRooms: 15.00
+AveRooms * AveRooms: 25.00
+\end{lstlisting}
+
+\textbf{What an interaction term captures:}
+\newline
+An interaction term (e.g., \texttt{MedInc * AveRooms}) captures the joint effect of two features. If house value depends on income and number of rooms together, a simple additive model cannot capture this. Interaction terms allow the model to learn that the effect of one feature depends on the value of another.
+
+\subsection{Binning (discretisation)}
+
+Both uniform and quantile binning strategies were applied to MedInc with 10 bins:
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{binning_comparison.png}
+\caption{Binning Comparison: Uniform vs Quantile}
+\label{fig:binning}
+\end{figure}
+
+\textbf{Which strategy gives more balanced bin sizes?}
+\newline
+\textbf{Quantile binning} (equal frequency) gives much more balanced bin sizes because it places approximately the same number of samples in each bin. Uniform binning creates bins of equal width, but if the data is skewed, some bins will be empty while others contain most samples.
+
+\subsection{Impact of feature engineering}
+
+\begin{table}[H]
+\centering
+\caption{5-Fold Cross-Validated RMSE on California Housing}
+\begin{tabular}{l c}
+\toprule
+\textbf{Feature Set} & \textbf{RMSE} \\
+\midrule
+Raw 8 features (standardized) & 0.7205 \\
+Polynomial degree-2 (44 features) & 2.1884 \\
+Binned MedInc (10 bins) & 0.7302 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Why Polynomial Features Failed:}
+\begin{enumerate}
+    \item \textbf{Overfitting:} 44 features from 8 original features with no regularization
+    \item \textbf{Multicollinearity:} Polynomial features are highly correlated with their original counterparts
+    \item \textbf{No Regularization:} OLS minimizes squared error without penalty
+\end{enumerate}
+
+% ============================================================
+% PART 3: DATA VISUALISATION
+% ============================================================
+
+\section{Data Visualisation}
+
+\subsection{Anscombe's Quartet}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{anscombe_quartet.png}
+\caption{Anscombe's Quartet with Shared Scales}
+\label{fig:anscombe}
+\end{figure}
+
+\textbf{Why visualization is indispensable:}
+\newline
+Despite having nearly identical summary statistics (mean, variance, correlation), the four datasets tell completely different stories:
+\begin{itemize}
+    \item \textbf{Dataset I:} Classic linear relationship with random noise
+    \item \textbf{Dataset II:} Parabolic (quadratic) relationship — linear regression fits but misses the curve
+    \item \textbf{Dataset III:} Perfect linear relationship except one outlier that distorts the line
+    \item \textbf{Dataset IV:} Vertical line — all x values identical except one
+\end{itemize}
+
+This demonstrates Anscombe's famous point: summary statistics can be identical while data structures are fundamentally different.
+
+\subsection{Exploratory visualisations for Titanic}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{titanic_pairplot.png}
+\caption{Titanic: Pair Plot of Numeric Features by Survival}
+\label{fig:titanic_pair}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{titanic_survival_by_class.png}
+\caption{Survival by Passenger Class: Count and Proportion}
+\label{fig:titanic_class}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.7\textwidth]{titanic_age_boxplot.png}
+\caption{Age Distribution by Survival Status}
+\label{fig:titanic_age}
+\end{figure}
+
+\subsection{Reflection on visualisation principles}
+
+\textbf{Application of Tufte's Data-Ink Ratio and Perceptual-Channel Ordering:}
+
+\textbf{Data-Ink Ratio:} Applied Tufte's principle by removing unnecessary gridlines, eliminating redundant labels and legends, removing chart junk, and using minimal axis decorations.
+
+\textbf{Perceptual-Channel Ordering:} Following Cleveland \& McGill's perceptual hierarchy:
+\begin{itemize}
+    \item \textbf{Position along common scale:} Box plot median lines, regression lines — most accurate
+    \item \textbf{Length:} Count plot bar heights — second most accurate
+    \item \textbf{Area/Color hue:} Scatter plot points — used for survival distinction
+    \item \textbf{Color saturation:} Avoided — less accurate perceptual channel
+\end{itemize}
+
+\textbf{What I would change after learning these principles:}
+\newline
+The single most impactful change would be switching from default matplotlib color cycles to color-blind-safe palettes (like \texttt{sns.set\_palette('colorblind')}), making visualizations accessible to 1 in 12 men who have color vision deficiency.
+
+% ============================================================
+% PART 4: INTEGRATION & EVALUATION
+% ============================================================
+
+\section{Integration \& Evaluation}
+
+\subsection{Preprocessing pipeline}
+
+A single sklearn Pipeline was built with custom wrappers:
+
+\begin{lstlisting}[caption=Pipeline Structure]
+Pipeline(steps=[
+    ('preprocessor', ColumnTransformer([
+        ('num', Pipeline([
+            ('missing_indicator', MissingIndicatorWrapper()),
+            ('imputer', CustomSimpleImputerWrapper(strategy='median')),
+            ('scaler', StandardScaler())
+        ]), ['age', 'pclass', 'sibsp', 'parch', 'fare']),
+        ('cat', Pipeline([
+            ('imputer', SimpleImputer(strategy='most_frequent')),
+            ('onehot', CustomOneHotWrapper(drop='first'))
+        ]), ['sex', 'embarked'])
+    ])),
+    ('classifier', LogisticRegression(max_iter=1000, random_state=42))
+])
+\end{lstlisting}
+
+\textbf{Cross-Validation Results:}
+\begin{lstlisting}
+5-Fold Cross-Validated Accuracy on Training Set:
+Fold 1: 0.8252
+Fold 2: 0.7902
+Fold 3: 0.8028
+Fold 4: 0.7254
+Fold 5: 0.8099
+
+Mean Accuracy: 0.7907 (+/- 0.0346)
+
+Test Accuracy: 0.8212
+
+Improvement vs Simple Baseline: +2.40 percentage points
+\end{lstlisting}
+
+\subsection{Leakage checklist}
+
+\textbf{1. Imputation fitted only on training data}
+\newline
+\textit{Leakage avoided:} Computing mean/median on full dataset would use test set values.
+\newline
+\textit{Implementation:} \texttt{SimpleImputer.fit(X\_train)} only, then \texttt{transform(X\_test)}.
+
+\textbf{2. Target encoding with cross-validation}
+\newline
+\textit{Leakage avoided:} Computing category means using test targets would cheat.
+\newline
+\textit{Implementation:} \texttt{TargetEncoder} uses only training data in \texttt{fit()}, test categories get training means or global mean.
+
+\textbf{3. Scaling fitted only on training data}
+\newline
+\textit{Leakage avoided:} Using test data to compute mean/std would leak global distribution.
+\newline
+\textit{Implementation:} \texttt{StandardScaler.fit(X\_train)}, then \texttt{transform(X\_test)}.
+
+\textbf{Additional prevention:}
+\newline
+Missing indicator computed from training distribution; one-hot encoding categories from training only.
+
+\subsection{Outlier treatment}
+
+Winsorization was applied to MedInc at the 1st and 99th percentiles:
+
+\begin{table}[H]
+\centering
+\caption{Winsorization Comparison}
+\begin{tabular}{l c c}
+\toprule
+\textbf{Data} & \textbf{MedInc Coefficient} & \textbf{5-fold CV RMSE} \\
+\midrule
+Original & 0.8544 & 0.7205 \\
+Winsorized (clipped at 1st/99th) & 0.9022 & \textbf{0.7071} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Why winsorization improves model generalization:}
+\newline
+Winsorization reduces the influence of extreme outliers by capping them at reasonable thresholds. This improves generalization because:
+\begin{enumerate}
+    \item Linear models are sensitive to outliers
+    \item Winsorized coefficients are more representative of typical relationships
+    \item Better cross-validation — outliers that appear in training but not validation cause high variance
+\end{enumerate}
+
+% ============================================================
+% BONUS
+% ============================================================
+
+\section{Bonus}
+
+\subsection{Bonus 1: Yeo-Johnson Transformer}
+
+A custom Yeo-Johnson transformer was implemented with maximum-likelihood estimation of $\lambda$:
+
+\begin{lstlisting}[caption=Yeo-Johnson Transformation Summary]
+Optimal lambda (without standardization): -0.2917
+Optimal lambda (with standardization): -0.2917
+
+Original skewness: 1.8672
+Transformed skewness: -0.0036
+Reduction in |skewness|: 99.81%
+Optimal lambda: -0.2917
+\end{lstlisting}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{yeo_johnson_transform.png}
+\caption{Yeo-Johnson Transformation: Before and After}
+\label{fig:yeo_johnson}
+\end{figure}
+
+The Yeo-Johnson transformation successfully reduced skewness from 1.8672 to -0.0036, a 99.81\% reduction, making the distribution approximately symmetric.
+
+\subsection{Bonus 2: Visualisation Report}
+
+A one-page visualization report was created (\texttt{figures/visualisation\_report.pdf}) that tells a story about the Titanic dataset following Tufte's principles:
+
+\begin{itemize}
+    \item \textbf{Panel 1:} Survival by Passenger Class — "First class had highest survival rate"
+    \item \textbf{Panel 2:} Age Distribution by Survival — "Children and women first"
+    \item \textbf{Panel 3:} Fare Distribution by Survival — "Higher fare = higher survival"
+    \item \textbf{Panel 4:} Survival Rate by Sex and Class — "Wealthy women had best chance"
+\end{itemize}
+
+The report uses a color-blind safe palette, high data-ink ratio, and annotated charts with call-outs.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{visualisation_report.png}
+\caption{Titanic Visualization Report}
+\label{fig:vis_report}
+\end{figure}
+
+% ============================================================
+% CONCLUSION
+% ============================================================
+
+\section{Conclusion}
+
+This assignment demonstrated the complete data science pipeline from raw data to predictive modeling:
+
+\begin{itemize}
+    \item \textbf{Data Cleaning:} MCAR/MAR/MNAR analysis, custom imputation strategies, CV-safe encoding
+    \item \textbf{Feature Engineering:} Scaling, polynomial features, binning, and Yeo-Johnson transformation
+    \item \textbf{Data Visualization:} Anscombe's Quartet, Titanic EDA, Tufte's principles
+    \item \textbf{Integration:} sklearn Pipeline with custom transformers, leakage prevention
+\end{itemize}
+
+Key findings:
+\begin{enumerate}
+    \item Class was the strongest predictor of survival (1st class: 63.0\%, 3rd class: 24.2\%)
+    \item RobustScaler is preferred for heavy-tailed distributions
+    \item Polynomial features require regularization to generalize well
+    \item The pipeline improved test accuracy by 2.40 percentage points over baseline
+    \item Yeo-Johnson transformation achieved 99.81\% skewness reduction
+\end{enumerate}
+
+% ============================================================
+% APPENDIX: KEY STATISTICS
+% ============================================================
+
+\section*{Appendix: Key Statistical Results}
+
+\begin{table}[H]
+\centering
+\caption{Summary of Key Findings}
+\begin{tabular}{l l l}
+\toprule
+\textbf{Finding} & \textbf{Statistical Evidence} & \textbf{Interpretation} \\
+\midrule
+Class affects survival & $\chi^2=102.89$, p$<$0.0001 & 1st class 5.3x more likely to survive \\
+Children vs adults & $\chi^2=15.56$, p=0.00008 & Children 1.6x more likely to survive \\
+Fare affects survival & t=-7.94, p$<$0.0001 & Survivors paid \$26.28 more on average \\
+Sex + class & $\chi^2=350.68$, p$<$0.0001 & 1st class women 96.8\% survival \\
+Interaction (fare × class) & LR=7.38, p=0.025 & Fare effect differs by class \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\end{document}

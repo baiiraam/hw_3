@@ -1,24 +1,8 @@
-# As of 17.06.2026,
-# the dependency versions required for this project are:
+matplotlib>=3.11.0
+numpy>=2.4.6
+pandas>=3.0.3
+scikit-learn>=1.9.0
+scipy>=1.17.1
+seaborn>=0.13.2
+
 # python>=3.12
-# ipykernel>=7.3.0
-# matplotlib>=3.11.0
-# nbconvert>=7.17.1
-# numpy>=2.4.6
-# pandas>=3.0.3
-# pytest>=9.1.0
-# pytest-cov>=7.1.0
-# ruff>=0.15.17
-# scikit-learn>=1.9.0
-# scipy>=1.17.1
-# seaborn>=0.13.2
-# statsmodels>=0.14.6
-# ty>=0.0.49
-
-# Some of them might be not necessary:
-# For example, ipykernel, testing, linting, and etc.
-
-# These dependencies are copied from pyproject.toml,
-# so, modify based on your interest.
-# I will put the minimal requirements to run the code.
-# The dependencies will not include statsmodels, as it is "trial" code for me.
